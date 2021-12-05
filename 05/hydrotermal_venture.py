@@ -1,6 +1,5 @@
 import fileinput
 from collections import defaultdict
-from os import major
 
 
 def is_horizontal(a, b):
@@ -16,7 +15,8 @@ def is_vertical(a, b):
 
 
 def draw_map(lines, with_diagonals=False):
-    map = {}
+    map = defaultdict(int)
+
     for line in lines:
         a, b = line
         x1, y1 = a
@@ -24,17 +24,15 @@ def draw_map(lines, with_diagonals=False):
 
         if is_horizontal(*line):
             y = y1
-
             start, end = min(x1, x2), max(x1, x2)
             for x in range(start, end + 1):
-                map[(x, y)] = map.get((x, y), 0) + 1
+                map[(x, y)] += 1
 
         elif is_vertical(*line):
             x = x1
-
             start, end = min(y1, y2), max(y1, y2)
             for y in range(start, end + 1):
-                map[(x, y)] = map.get((x, y), 0) + 1
+                map[(x, y)] += 1
 
         else:
             if not with_diagonals:
@@ -46,9 +44,8 @@ def draw_map(lines, with_diagonals=False):
             start, end = min(x1, x2), max(x1, x2)
 
             x, y = x1, y1
-
             for _ in range(start, end + 1):
-                map[(x, y)] = map.get((x, y), 0) + 1
+                map[(x, y)] += 1
                 x += x_slope
                 y += y_slope
 
@@ -65,45 +62,32 @@ def parse():
     return lines
 
 
-def get_ends(lines):
-    valid = [line for line in lines if is_horizontal(*line) or is_vertical(*line)]
-    xs = [max(a[0], b[0]) for a, b in valid]
-    ys = [max(a[1], b[1]) for a, b in valid]
-    return max(xs), max(ys)
+def get_ends(map):
+    return max(x for x, _ in map), max(y for _, y in map)
 
 
-def plot_map(map, ends):
-    max_x, max_y = ends
+def plot_map(map):
+    max_x, max_y = get_ends(map)
 
     print()
     for y in range(max_y + 1):
-        row = [
-            str(map.get((x, y))) if map.get((x, y)) else "." for x in range(max_x + 1)
-        ]
+        row = [str(map[(x, y)]) if map[(x, y)] else "." for x in range(max_x + 1)]
         print("".join(row))
     print()
 
 
-def count_overlaps(map, ends):
-    max_x, max_y = ends
-
-    count = 0
-    for y in range(max_y + 1):
-        for x in range(max_x + 1):
-            if map.get((x, y), 0) >= 2:
-                count += 1
-    return count
+def count_overlaps(map):
+    return sum(1 for count in map.values() if count >= 2)
 
 
 def main():
     lines = parse()
-    max_x, max_y = get_ends(lines)
     map = draw_map(lines)
-    overlaps = count_overlaps(map, (max_x, max_y))
+    overlaps = count_overlaps(map)
     print(f"Part 1: {overlaps}")
 
     map_with_diagonals = draw_map(lines, with_diagonals=True)
-    overlaps = count_overlaps(map_with_diagonals, (max_x, max_y))
+    overlaps = count_overlaps(map_with_diagonals)
     print(f"Part 2: {overlaps}")
 
 
