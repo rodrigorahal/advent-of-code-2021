@@ -18,37 +18,24 @@ def draw_map(lines, with_diagonals=False):
     map = defaultdict(int)
 
     for line in lines:
+        if not with_diagonals and not is_vertical(*line) and not is_horizontal(*line):
+            continue
+
         a, b = line
         x1, y1 = a
         x2, y2 = b
 
-        if is_horizontal(*line):
-            y = y1
-            start, end = min(x1, x2), max(x1, x2)
-            for x in range(start, end + 1):
-                map[(x, y)] += 1
+        dx = x2 - x1
+        dy = y2 - y1
 
-        elif is_vertical(*line):
-            x = x1
-            start, end = min(y1, y2), max(y1, y2)
-            for y in range(start, end + 1):
-                map[(x, y)] += 1
+        x_slope = 1 if dx > 0 else (-1 if dx < 0 else 0)
+        y_slope = 1 if dy > 0 else (-1 if dy < 0 else 0)
 
-        else:
-            if not with_diagonals:
-                continue
-
-            x_slope = 1 if x1 < x2 else -1
-            y_slope = 1 if y1 < y2 else -1
-
-            start, end = min(x1, x2), max(x1, x2)
-
-            x, y = x1, y1
-            for _ in range(start, end + 1):
-                map[(x, y)] += 1
-                x += x_slope
-                y += y_slope
-
+        x, y = x1, y1
+        for _ in range(max(abs(dx), abs(dy)) + 1):
+            map[(x, y)] += 1
+            x += x_slope
+            y += y_slope
     return map
 
 
