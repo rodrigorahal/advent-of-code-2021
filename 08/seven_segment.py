@@ -28,6 +28,8 @@ PATTERN_BY_DISPLAY = {
     9: "abcdfg",
 }
 
+WIRES = "abcdefg"
+
 
 def get_patterns_by_n_segments(n_segments):
     displays = [
@@ -67,98 +69,107 @@ def get_candidates_by_wire(entry):
         else:
             continue
 
-    for wire in "abcdefg":
+    for wire in WIRES:
         candidates_by_wire_per_read[wire] = set.intersection(
             *candidates_by_wire_per_read[wire]
         )
     return candidates_by_wire_per_read
 
 
-def get_matching(candidates):
-    matching = defaultdict(list)
-    for wire, cs in candidates.items():
-        if len(cs) == 2:
-            matching["".join(cs)].append(wire)
-    return matching
+def get_wires_by_matching_candidates(candidates_by_wire):
+    wires_by_matching_candidates = defaultdict(list)
+    for wire, wire_candidates in candidates_by_wire.items():
+        if len(wire_candidates) == 2:
+            wires_by_matching_candidates["".join(wire_candidates)].append(wire)
+    return wires_by_matching_candidates
 
 
-def clean(candidates):
-    for wire, cs in candidates.items():
-        if len(cs) == 1:
-            for w in "abcdefg":
-                if w != wire:
-                    candidates[w] -= cs
-    return candidates
+def update_solved_wires(candidates_by_wire):
+    solved_wires = []
+    unsolved_wires = []
+    for wire in WIRES:
+        if len(candidates_by_wire[wire]) == 1:
+            solved_wires.append(wire)
+        else:
+            unsolved_wires.append(wire)
+
+    for solved_wire in solved_wires:
+        for unsolved_wire in unsolved_wires:
+            candidates_by_wire[unsolved_wire] -= candidates_by_wire[solved_wire]
+    return candidates_by_wire
 
 
-def step(candidates):
-    prev_len = 0
-    matching = defaultdict(list)
-    for wire, cs in candidates.items():
-        if len(cs) == 2:
-            matching["".join(cs)].append(wire)
-    curr_len = len(matching)
+def update_matching_wires(candidates_by_wire):
+    prev = 0
+    wires_by_matching_candidates = get_wires_by_matching_candidates(candidates_by_wire)
+    curr = len(wires_by_matching_candidates)
 
-    while prev_len != curr_len:
-        for k, v in matching.items():
-            if len(v) == 1:
-                continue
+    while prev != curr:
+        for (
+            matching_candidates,
+            wires_with_matching,
+        ) in wires_by_matching_candidates.items():
 
-            for wire in "abcdefg":
-                if wire not in v and len(candidates[wire]) > len(k):
-                    candidates[wire] -= set(k)
-        prev_len = curr_len
-        for wire, cs in candidates.items():
-            if len(cs) == 2:
-                matching["".join(cs)].append(wire)
-        curr_len = len(matching)
+            for wire in WIRES:
+                if wire not in wires_with_matching and len(
+                    candidates_by_wire[wire]
+                ) > len(matching_candidates):
+                    candidates_by_wire[wire] -= set(matching_candidates)
 
-    for wire, cs in candidates.items():
-        if len(cs) == 1:
-            for w in "abcdefg":
-                if w != wire:
-                    candidates[w] -= cs
+        prev = curr
+        wires_by_matching_candidates = get_wires_by_matching_candidates(
+            candidates_by_wire
+        )
+        curr = len(wires_by_matching_candidates)
 
-    return candidates
+    return candidates_by_wire
 
 
-def longs(entry, candidates):
+def update_wires_with_multiple_patterns(entry, candidates_by_wire):
     reads, _ = entry
-    for read in sorted(reads, key=len):
-        if len(read) in (2, 4, 3, 7):
+    for reading in sorted(reads, key=len):
+        if len(reading) in (2, 4, 3, 7):
             continue
 
-        if len(read) == 5 or len(read) == 6:
-            cs = get_possible_candidates_from_multiple(read, candidates)
-            if len(cs) == 1:
-                pattern = cs[0]
-                for wire in candidates:
-                    if wire in set(read):
-                        candidates[wire] = candidates[wire].intersection(pattern)
-                        candidates = clean(candidates)
+        if len(reading) in (5, 6):
+            possible_reading_patterns = get_possible_patterns_from_reading(
+                reading, candidates_by_wire
+            )
+            if len(possible_reading_patterns) == 1:
+                pattern = possible_reading_patterns[0]
+                for wire in candidates_by_wire:
+                    if wire in set(reading):
+                        candidates_by_wire[wire] = candidates_by_wire[
+                            wire
+                        ].intersection(pattern)
+                candidates_by_wire = update_solved_wires(candidates_by_wire)
+    return candidates_by_wire
 
-    return candidates
 
-
-def get_possible_candidates_from_multiple(read, candidates):
+def get_possible_patterns_from_reading(read, candidates_by_wire):
     patterns = get_patterns_by_n_segments(len(read))
     impossible = set()
-    matching = get_matching(candidates)
+    wires_by_matching_candidates = get_wires_by_matching_candidates(candidates_by_wire)
 
     for pattern in patterns:
         for wire in read:
-            if len(candidates[wire]) == 1 and not pattern.intersection(
-                candidates[wire]
+            if len(candidates_by_wire[wire]) == 1 and not pattern.intersection(
+                candidates_by_wire[wire]
             ):
                 impossible.add("".join(pattern))
 
-        for cs, wires in matching.items():
-            if (wires[0] in set(read) and wires[1] not in set(read)) or (
-                wires[0] not in set(read) and wires[1] in set(read)
+        for (
+            matching_candidates,
+            wires_with_matching,
+        ) in wires_by_matching_candidates.items():
+            if set(wires_with_matching).intersection(set(read)) != set(
+                wires_with_matching
             ):
-                if set(cs).intersection(pattern) == set(cs):
+                if set(matching_candidates).intersection(pattern) == set(
+                    matching_candidates
+                ):
                     impossible.add("".join(pattern))
-    return [p for p in patterns if "".join(p) not in impossible]
+    return [pattern for pattern in patterns if "".join(pattern) not in impossible]
 
 
 def get_display(outputs, candidates):
@@ -182,10 +193,12 @@ def map_output(output, candidates):
 def solve(notes):
     displays = []
     for entry in notes:
+        _, outputs = entry
         candidates = get_candidates_by_wire(entry)
-        candidates = step(candidates)
-        candidates = longs(entry, candidates)
-        display = get_display(entry[1], candidates)
+        candidates = update_matching_wires(candidates)
+        candidates = update_solved_wires(candidates)
+        candidates = update_wires_with_multiple_patterns(entry, candidates)
+        display = get_display(outputs, candidates)
         displays.append(display)
     return displays
 
