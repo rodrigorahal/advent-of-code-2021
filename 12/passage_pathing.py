@@ -13,26 +13,30 @@ def parse():
 
 
 def search_paths(graph):
-    stack = [("start", ["start"])]
+    stack = [("start", ["start"], set())]
     paths = []
 
     while stack:
-        cave, path = stack.pop()
+        cave, path, visited = stack.pop()
 
         for adjacent in graph[cave]:
-            if adjacent == "end":
+            if adjacent == "start":
+                continue
+            elif adjacent == "end":
                 paths.append(path + ["end"])
-            elif adjacent.isupper() or (adjacent.islower() and adjacent not in path):
-                stack.append((adjacent, path + [adjacent]))
+            elif adjacent.isupper():
+                stack.append((adjacent, path + [adjacent], visited))
+            elif adjacent not in visited:
+                stack.append((adjacent, path + [adjacent], {*visited, adjacent}))
     return paths
 
 
 def search_paths_with_revisit(graph):
-    stack = [("start", ["start"], {})]
+    stack = [("start", ["start"], set(), False)]
     paths = []
 
     while stack:
-        cave, path, counter = stack.pop()
+        cave, path, visited, has_revisit = stack.pop()
 
         for adjacent in graph[cave]:
             if adjacent == "start":
@@ -41,17 +45,13 @@ def search_paths_with_revisit(graph):
                 paths.append(path + ["end"])
                 continue
             elif adjacent.isupper():
-                stack.append((adjacent, path + [adjacent], {**counter}))
-            elif not counter.get(adjacent) or all(
-                count < 2 for count in counter.values()
-            ):
+                stack.append((adjacent, path + [adjacent], visited, has_revisit))
+            elif adjacent not in visited:
                 stack.append(
-                    (
-                        adjacent,
-                        path + [adjacent],
-                        {**counter, adjacent: counter.get(adjacent, 0) + 1},
-                    )
+                    (adjacent, path + [adjacent], {*visited, adjacent}, has_revisit)
                 )
+            elif not has_revisit:
+                stack.append((adjacent, path + [adjacent], visited, True))
     return paths
 
 
