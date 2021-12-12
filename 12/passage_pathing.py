@@ -12,26 +12,7 @@ def parse():
     return graph
 
 
-def search_paths(graph):
-    stack = [("start", ["start"], set())]
-    paths = []
-
-    while stack:
-        cave, path, visited = stack.pop()
-
-        for adjacent in graph[cave]:
-            if adjacent == "start":
-                continue
-            elif adjacent == "end":
-                paths.append(path + ["end"])
-            elif adjacent.isupper():
-                stack.append((adjacent, path + [adjacent], visited))
-            elif adjacent not in visited:
-                stack.append((adjacent, path + [adjacent], {*visited, adjacent}))
-    return paths
-
-
-def search_paths_with_revisit(graph):
+def search_paths(graph, with_revisit=False):
     stack = [("start", ["start"], set(), False)]
     paths = []
 
@@ -50,7 +31,7 @@ def search_paths_with_revisit(graph):
                 stack.append(
                     (adjacent, path + [adjacent], {*visited, adjacent}, has_revisit)
                 )
-            elif not has_revisit:
+            elif with_revisit and not has_revisit:
                 stack.append((adjacent, path + [adjacent], visited, True))
     return paths
 
@@ -58,10 +39,10 @@ def search_paths_with_revisit(graph):
 def main():
     graph = parse()
 
-    paths = search_paths(graph)
+    paths = search_paths(graph, with_revisit=False)
     print(f"Part 1: {len(paths)}")
 
-    paths = search_paths_with_revisit(graph)
+    paths = search_paths(graph, with_revisit=True)
     print(f"Part 2: {len(paths)}")
 
 
