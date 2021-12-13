@@ -36,9 +36,9 @@ def fold_left(paper, axis):
     folded = set()
     for x, y in paper:
         if y > axis:
-            ny = (y - axis) - 1
+            ny = 2 * axis - y
         if y < axis:
-            ny = abs(y - axis) - 1
+            ny = y
         folded.add((x, ny))
     return folded
 
@@ -55,18 +55,11 @@ def fold_up(paper, axis):
 
 
 def display_paper(paper):
-    max_x = max(x for x, _ in paper)
-    max_y = max(y for _, y in paper)
+    height = max(x for x, _ in paper)
+    width = max(y for _, y in paper)
 
-    for x in range(max_x + 1):
-        chars = []
-        for y in range(max_y + 1, -1, -1):
-            if (x, y) not in paper:
-                chars.append(".")
-            else:
-                chars.append("#")
-        print(" ".join(chars))
-    print()
+    for x in range(height + 1):
+        print(" ".join(["#" if (x, y) in paper else " " for y in range(width + 1)]))
 
 
 def main():
