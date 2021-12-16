@@ -6,7 +6,7 @@ def parse():
     return [line.strip() for line in fileinput.input()]
 
 
-def covert(message):
+def convert(message):
     size = len(message)
     nbits = size * 4
     bits = bin(int(message, 16))[2:].zfill(nbits)
@@ -82,7 +82,7 @@ def main():
     messages = parse()
 
     for message in messages:
-        versions, value = decode(covert(message))
+        versions, value = decode(convert(message))
         print(f"versions: {versions}")
         print(f"value: {value}")
 
