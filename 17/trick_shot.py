@@ -19,8 +19,7 @@ def simulate(target, vx, vy):
         dx = -1 if vx > 0 else (1 if x < 0 else 0)
         vx += dx
         vy -= 1
-        if y > maxy:
-            maxy = y
+        maxy = max(y, maxy)
 
         if xt0 <= x <= xt1 and yt0 <= y <= yt1:
             return True, maxy
@@ -32,11 +31,12 @@ def simulate(target, vx, vy):
     return False, None
 
 
-def search(target, vrange=50):
+def search(target, yrange):
     peaks = []
     hits = set()
-    for vx in range(-vrange, vrange):
-        for vy in range(-vrange, vrange):
+    (xt0, xt1), (yt0, yt1) = target
+    for vx in range(xt1 + 1):
+        for vy in range(yt0 - 1, yrange):
             hits_target, maxy = simulate(target, vx, vy)
             if hits_target:
                 peaks.append(maxy)
@@ -46,9 +46,9 @@ def search(target, vrange=50):
 
 def main():
     xt, yt = parse()
-    peak, vlcts = search(target=(xt, yt), vrange=300)
+    peak, hits = search(target=(xt, yt), yrange=300)
     print(f"Part 1: {peak}")
-    print(f"Part 2: {len(vlcts)}")
+    print(f"Part 2: {len(hits)}")
 
 
 if __name__ == "__main__":
