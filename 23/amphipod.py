@@ -41,9 +41,14 @@ ROOMS = [
 OPEN_SPACE = CORRIDOR + ROOMS
 
 
-def pair_rooms(room):
+def in_grid(grid, row, col):
+    height, width = len(grid), len(grid[0])
+    return 0 <= row < height and 0 <= col < width
+
+
+def pair_rooms(grid, room):
     row, col = room
-    return [(r, col) for r in range(1, 5) if r != row]
+    return [(r, col) for r in range(1, 5) if r != row and in_grid(grid, r, col)]
 
 
 def distance(p1, p2):
@@ -65,8 +70,10 @@ def moves_from_room(grid, row, col):
 
     all_pairs_in_target = all(
         (pair_row, pair_col) in AMPHI_ROOMS.get(grid[pair_row][pair_col], set())
-        for (pair_row, pair_col) in pair_rooms((row, col))
+        for (pair_row, pair_col) in pair_rooms(grid, (row, col))
     )
+
+    is_last_pair = row == len(grid) - 1
 
     is_blocked = any(grid[r][col] != "." for r in range(1, row))
 
@@ -74,6 +81,9 @@ def moves_from_room(grid, row, col):
         return []
 
     if is_in_target and all_pairs_in_target:
+        return []
+
+    if is_in_target and is_last_pair:
         return []
 
     return valid_corridor_positions(grid, row, col)
@@ -94,7 +104,7 @@ def moves_from_corridor(grid, row, col):
     return [
         room
         for room in AMPHI_ROOMS[amphipod]
-        if can_move_to_room(grid, (row, col), room)
+        if in_grid(grid, room[0], room[1]) and can_move_to_room(grid, (row, col), room)
     ]
 
 
@@ -116,13 +126,13 @@ def can_move_to_room(grid, current, room):
 
     above_pairs_are_free = all(
         grid[pair_row][pair_col] == "."
-        for pair_row, pair_col in pair_rooms(room)
+        for pair_row, pair_col in pair_rooms(grid, room)
         if pair_row < room_row
     )
 
     below_pairs_are_target = all(
         grid[pair_row][pair_col] == amphipod
-        for pair_row, pair_col in pair_rooms(room)
+        for pair_row, pair_col in pair_rooms(grid, room)
         if pair_row > room_row
     )
 
@@ -136,35 +146,20 @@ def can_move_to_room(grid, current, room):
 
 
 def is_solved(grid):
-    room_fillings = [grid[row][col] for row, col in ROOMS]
-    return room_fillings == [
-        "A",
-        "A",
-        "A",
-        "A",
-        "B",
-        "B",
-        "B",
-        "B",
-        "C",
-        "C",
-        "C",
-        "C",
-        "D",
-        "D",
-        "D",
-        "D",
-    ]
+    height, width = len(grid), len(grid[0])
+    room_fillings = [grid[row][col] for row, col in ROOMS if in_grid(grid, row, col)]
+    expected = [amphi for amphi in ["A", "B", "C", "D"] for _ in range(height - 1)]
+    return room_fillings == expected
 
 
-def search(initial_state):
+def search(initial_state, verbose=False):
     solutions = []
-    new_states = [(initial_state, 0)]
+    new_states = [(initial_state, 0, [])]
     seen = {}
     min_score = float("+inf")
 
     while new_states:
-        grid, score = new_states.pop()
+        grid, score, prev_moves = new_states.pop()
 
         if hash(grid) in seen:
             if score >= seen[hash(grid)]:
@@ -172,6 +167,8 @@ def search(initial_state):
         seen[hash(grid)] = score
 
         for row, col in OPEN_SPACE:
+            if not in_grid(grid, row, col):
+                continue
             if grid[row][col] != ".":
                 # generate all next possible states
                 amphipod = grid[row][col]
@@ -182,13 +179,15 @@ def search(initial_state):
                     new_score = score + ENERGY_TO_M0VE[amphipod] * distance(
                         (row, col), (move_to_row, move_to_col)
                     )
+                    new_moves = prev_moves + [
+                        f"({row, col}) -> ({move_to_row, move_to_col})"
+                    ]
                     if is_solved(new_grid):
-                        solutions.append((new_grid, new_score))
+                        solutions.append((new_grid, new_score, new_moves))
                         min_score = min(min_score, new_score)
                     else:
                         if new_score < min_score:
-                            new_states.append((new_grid, new_score))
-
+                            new_states.append((new_grid, new_score, new_moves))
     return solutions
 
 
@@ -211,10 +210,15 @@ def main():
         ["#", "#", "D", "#", "A", "#", "D", "#", "C", "#", "#"],
         ["#", "#", "C", "#", "A", "#", "B", "#", "B", "#", "#"],
     ]
-    # Once upon a time, this used to solve part 1
-    # Not anymore, not anymore...
-    # solutions = search(GRID)
-    # print(f"Part 2: {min(score for _, score in solutions)}")
+
+    TEST = [
+        ["A", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
+        ["#", "#", "A", "#", ".", "#", "D", "#", "D", "#", "#"],
+        ["#", "#", "B", "#", "A", "#", "B", "#", "D", "#", "#"],
+    ]
+
+    solutions = search(GRID)
+    print(f"Part 1: {min(score for _, score, _ in solutions)}")
 
     GRID = [
         [".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "."],
@@ -224,8 +228,16 @@ def main():
         ["#", "#", "C", "#", "A", "#", "B", "#", "B", "#", "#"],
     ]
 
+    TEST = [
+        ["A", "B", ".", ".", ".", "B", ".", ".", ".", "A", "."],
+        ["#", "#", ".", "#", "A", "#", ".", "#", "C", "#", "#"],
+        ["#", "#", "A", "#", "C", "#", "B", "#", "A", "#", "#"],
+        ["#", "#", "B", "#", "B", "#", "A", "#", "C", "#", "#"],
+        ["#", "#", "B", "#", "A", "#", "B", "#", "B", "#", "#"],
+    ]
+
     solutions = search(GRID)
-    print(f"Part 2: {min(score for _, score in solutions)}")
+    print(f"Part 2: {min(score for _, score, _ in solutions)}")
 
 
 if __name__ == "__main__":
